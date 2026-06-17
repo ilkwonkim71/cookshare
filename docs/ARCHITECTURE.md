@@ -2,7 +2,7 @@
 
 레시피 공유 서비스의 시스템 아키텍처 문서입니다. 실제 스캐폴딩된 코드 구조를 기준으로 작성되었습니다.
 
-- 대상 스택: Next.js 14 (App Router) / Express + TS / SQLite / JWT / 로컬 이미지 저장
+- 대상 스택: Next.js 14 (App Router) / Express + TS / PostgreSQL / JWT / 로컬 이미지 저장
 - 문서 버전: 2026-06-17
 
 ---
@@ -27,7 +27,7 @@ flowchart LR
     end
 
     subgraph Storage["저장소"]
-        DB[(SQLite<br/>cookshare.sqlite)]
+        DB[(PostgreSQL<br/>Supabase / Docker)]
         Files[/로컬 디스크<br/>uploads//]
     end
 
@@ -66,7 +66,7 @@ flowchart TB
         Ctrl["Controllers<br/>요청/응답 처리 + zod 검증"]
         Models["Models/Services<br/>user.model · recipe.model"]
         StorageLayer["Storage 추상화<br/>Storage 인터페이스"]
-        DBConn["db/index.ts<br/>better-sqlite3 싱글톤"]
+        DBConn["db/index.ts<br/>pg Pool (node-postgres)"]
 
         MW --> Routes --> Ctrl
         Ctrl --> Models
@@ -75,12 +75,12 @@ flowchart TB
     end
 
     subgraph Infra["저장소"]
-        SQLite[(SQLite)]
+        Postgres[(PostgreSQL)]
         Disk[/uploads//]
     end
 
     FE_Lib -->|HTTP JSON| MW
-    DBConn --> SQLite
+    DBConn --> Postgres
     StorageLayer --> Disk
 ```
 
@@ -129,7 +129,7 @@ sequenceDiagram
     actor U as 사용자
     participant FE as Frontend (api.ts/AuthContext)
     participant BE as Backend (auth.controller)
-    participant DB as SQLite
+    participant DB as PostgreSQL
 
     Note over U,DB: 회원가입 / 로그인
     U->>FE: 이메일/비밀번호/이름 입력
@@ -166,7 +166,7 @@ sequenceDiagram
     participant FE as Frontend
     participant BE as upload.controller
     participant ST as Storage (LocalStorage)
-    participant DB as SQLite
+    participant DB as PostgreSQL
 
     U->>FE: 이미지 선택 + 레시피 폼 작성
     FE->>BE: POST /api/uploads (multipart, field=image)<br/>Bearer JWT
@@ -260,13 +260,13 @@ flowchart TB
     subgraph Local["로컬 (localhost)"]
         FEdev["Next.js dev :3000"]
         BEdev["Express tsx watch :4000"]
-        SQLITEdev[(SQLite 파일)]
+        PGdev[(PostgreSQL<br/>Docker)]
         UPdev[/uploads 디렉토리/]
     end
     Dev --> FEdev
     Dev --> BEdev
     FEdev -->|NEXT_PUBLIC_API_URL| BEdev
-    BEdev --> SQLITEdev
+    BEdev --> PGdev
     BEdev --> UPdev
 ```
 
@@ -285,7 +285,7 @@ flowchart TB
     end
 
     subgraph Data["데이터 계층"]
-        DBprod[(SQLite → Postgres<br/>마이그레이션 검토)]
+        DBprod[(PostgreSQL<br/>Supabase)]
         S3[("오브젝트 스토리지<br/>S3 호환")]
     end
 
@@ -295,7 +295,7 @@ flowchart TB
     BEhost --> DBprod
     BEhost -->|STORAGE_DRIVER=s3| S3
 
-    note1["출시 시 전환 포인트:<br/>① 로컬 디스크 → S3<br/>② SQLite → Postgres(선택)<br/>③ HTTPS/도메인/시크릿 관리"]
+    note1["출시 시 전환 포인트:<br/>① 로컬 디스크 → S3<br/>② Supabase Postgres 연결<br/>③ HTTPS/도메인/시크릿 관리"]
 ```
 
 > 운영 환경 전환은 WBS의 8.4(배포 구성), 8.5(S3 스파이크)에서 다룹니다.
@@ -305,11 +305,11 @@ flowchart TB
 
 ## 9. 기술 결정 요약 (ADR 축약)
 
-| 결정                     | 선택                    | 이유                                        | 대안/전환                        |
-| ------------------------ | ----------------------- | ------------------------------------------- | -------------------------------- |
-| 프론트 프레임워크        | Next.js 14 App Router   | SSR/라우팅/DX, shadcn 생태계                | -                                |
-| 백엔드                   | Express + TS            | 가볍고 친숙, 빠른 MVP                       | NestJS(규모 커지면)              |
-| DB                       | SQLite (better-sqlite3) | 개발 단순성, 무설정, 동기 API               | Postgres(운영/동시성)            |
-| 인증                     | JWT (Bearer)            | 무상태, FE/BE 분리에 적합                   | 세션+쿠키(보안 강화 시)          |
-| 이미지 저장              | 로컬 디스크 + 추상화    | MVP 단순, Storage 인터페이스로 S3 여지 확보 | S3(STORAGE_DRIVER로 전환)        |
-| 데이터 직렬화(재료/단계) | JSON 문자열 컬럼        | 스키마 단순, MVP 충분                       | 정규화 테이블(검색/통계 필요 시) |
+| 결정                     | 선택                       | 이유                                        | 대안/전환                        |
+| ------------------------ | -------------------------- | ------------------------------------------- | -------------------------------- |
+| 프론트 프레임워크        | Next.js 14 App Router      | SSR/라우팅/DX, shadcn 생태계                | -                                |
+| 백엔드                   | Express + TS               | 가볍고 친숙, 빠른 MVP                       | NestJS(규모 커지면)              |
+| DB                       | PostgreSQL (node-postgres) | 운영/동시성, Supabase 호환, 무상태 백엔드   | 개발: Docker · 테스트: pg-mem    |
+| 인증                     | JWT (Bearer)               | 무상태, FE/BE 분리에 적합                   | 세션+쿠키(보안 강화 시)          |
+| 이미지 저장              | 로컬 디스크 + 추상화       | MVP 단순, Storage 인터페이스로 S3 여지 확보 | S3(STORAGE_DRIVER로 전환)        |
+| 데이터 직렬화(재료/단계) | JSON 문자열 컬럼           | 스키마 단순, MVP 충분                       | 정규화 테이블(검색/통계 필요 시) |
