@@ -42,3 +42,6 @@ blob-report/
 # 브라우저 데모 산출물
 .playwright-mcp/
 cookshare-*.png
+
+# TypeScript incremental build info
+*.tsbuildinfo
