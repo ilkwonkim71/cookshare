@@ -1,0 +1,32 @@
+# Render Blueprint — 백엔드(Express API)를 무료 Web Service로 배포
+# 적용: Render 대시보드 → New → Blueprint → 이 저장소 선택 (render.yaml 자동 감지)
+# DB는 외부 Supabase Postgres를 DATABASE_URL 로 사용하므로 디스크가 필요 없음 → free 플랜 가능.
+services:
+  - type: web
+    name: cookshare-api
+    runtime: docker
+    repo: https://github.com/ilkwonkim71/cookshare
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      # 자동 생성되는 강력한 시크릿 (리스크 R1 회피)
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      # 아래 3개는 대시보드에서 직접 입력 (sync:false → Blueprint가 값을 덮어쓰지 않음)
+      - key: DATABASE_URL # Supabase 연결 문자열 (postgres://...)
+        sync: false
+      - key: CORS_ORIGIN # Vercel 프론트 도메인 (예: https://cookshare.vercel.app)
+        sync: false
+      - key: PUBLIC_BASE_URL # 이 서비스의 Render 공개 URL (예: https://cookshare-api.onrender.com)
+        sync: false
+      - key: DATABASE_SSL
+        value: 'true'
+      - key: STORAGE_DRIVER
+        value: local
+      - key: UPLOAD_DIR
+        value: ./uploads

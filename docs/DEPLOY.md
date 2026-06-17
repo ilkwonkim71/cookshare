@@ -1,48 +1,53 @@
 # 배포 가이드
 
-CookShare는 **프론트엔드(Vercel)** 와 **백엔드(Railway)** 를 분리 배포합니다.
+CookShare는 **프론트엔드(Vercel)** 와 **백엔드(Render)** 를 분리 배포합니다.
 둘은 `NEXT_PUBLIC_API_URL`(프론트→백엔드)과 `CORS_ORIGIN`(백엔드가 허용할 프론트 도메인)으로 연결됩니다.
+DB는 **Supabase Postgres**(외부)를 사용하므로 백엔드는 무상태입니다.
 
 ```
 브라우저 ──https──▶ Vercel (Next.js)
-   └────https, fetch(NEXT_PUBLIC_API_URL)────▶ Railway (Express API) ──▶ Supabase Postgres
+   └────https, fetch(NEXT_PUBLIC_API_URL)────▶ Render (Express API) ──▶ Supabase Postgres
 ```
 
 ---
 
-## 1. 백엔드 — Railway
+## 0. Supabase Postgres 준비 (먼저)
 
-루트의 `Dockerfile`(프로덕션)과 `railway.json`을 사용합니다.
+1. https://supabase.com → 새 프로젝트 생성 (무료, 카드 불필요)
+2. **Settings → Database → Connection string → URI** 복사
+   - 형식: `postgres://postgres:[PASSWORD]@db.[ref].supabase.co:5432/postgres`
+   - 이 값이 백엔드 `DATABASE_URL` 입니다. (`DATABASE_SSL=true` 함께 사용)
+3. 테이블은 백엔드 부팅 시 `migrate()` 가 자동 생성합니다(별도 SQL 불필요).
 
-### 1) 프로젝트 생성
+---
 
-- Railway → **New Project → Deploy from GitHub repo → `ilkwonkim71/cookshare`**
-- Railway가 루트 `Dockerfile` + `railway.json`을 감지해 빌드합니다.
+## 1. 백엔드 — Render (무료 Web Service)
 
-### 2) Supabase Postgres 준비
+루트의 `Dockerfile`(프로덕션)과 `render.yaml`(Blueprint)을 사용합니다.
 
-- Supabase → **Settings → Database → Connection string (URI)** 복사 → `DATABASE_URL` 에 사용
-- (선택) 업로드 영속이 필요하면 Railway Volume 을 `UPLOAD_DIR` 경로에 마운트하거나 S3로 전환
+### 1) Blueprint 배포
 
-### 3) 환경 변수 (Variables)
+- Render → **New → Blueprint → Connect repo `ilkwonkim71/cookshare`**
+- `render.yaml` 을 감지해 `cookshare-api` (Docker, free) 서비스를 만듭니다.
+- `JWT_SECRET` 은 자동 생성됩니다.
 
-| 변수              | 값                                                               |
-| ----------------- | ---------------------------------------------------------------- |
-| `JWT_SECRET`      | **강력한 랜덤 값** (필수 — 없으면 부팅 실패)                     |
-| `JWT_EXPIRES_IN`  | `7d`                                                             |
-| `DATABASE_URL`    | Supabase 연결 문자열 (postgres://...)                            |
-| `DATABASE_SSL`    | `true` (Supabase 등 관리형은 SSL 필요)                           |
-| `UPLOAD_DIR`      | `./uploads` (또는 마운트한 볼륨 경로)                            |
-| `STORAGE_DRIVER`  | `local`                                                          |
-| `PUBLIC_BASE_URL` | Railway 공개 도메인 (예: `https://cookshare-api.up.railway.app`) |
-| `CORS_ORIGIN`     | Vercel 프론트 도메인 (예: `https://cookshare.vercel.app`)        |
+### 2) 환경 변수 (대시보드에서 입력 — sync:false 항목)
 
-> `PORT`는 Railway가 자동 주입하며 앱이 그 값으로 listen합니다(코드 수정 불필요).
+| 변수              | 값                                                                |
+| ----------------- | ----------------------------------------------------------------- |
+| `DATABASE_URL`    | Supabase 연결 문자열 (postgres://...)                             |
+| `CORS_ORIGIN`     | Vercel 프론트 도메인 (예: `https://cookshare.vercel.app`)         |
+| `PUBLIC_BASE_URL` | 이 서비스의 Render URL (예: `https://cookshare-api.onrender.com`) |
 
-### 4) 도메인 확인
+> `JWT_SECRET`/`DATABASE_SSL`/`STORAGE_DRIVER`/`UPLOAD_DIR`/`JWT_EXPIRES_IN` 은 `render.yaml` 이 설정합니다.
+> `PORT` 는 Render가 자동 주입하며 앱이 그 값으로 listen합니다.
 
-- 서비스 → **Settings → Networking → Generate Domain** → 그 URL이 백엔드 공개 주소입니다.
-- 헬스체크: `https://<railway-domain>/api/health` → `{"status":"ok"}`
+### 3) 도메인/헬스체크
+
+- 배포 후 서비스 URL 확인 → `https://<render-url>/api/health` → `{"status":"ok"}`
+- 무료 플랜은 유휴 시 슬립 → 첫 요청에 콜드스타트(수십 초) 발생할 수 있음(데모 OK).
+
+> 대안: `railway.json` 으로 Railway 에도 배포 가능(무료 티어 없음). 자세한 변수는 위 표와 동일.
 
 ---
 
