@@ -1,19 +1,19 @@
-import { getDb } from './index';
+import { query } from './index';
 
-export function migrate(): void {
-  const db = getDb();
-
-  db.exec(`
+export async function migrate(): Promise<void> {
+  await query(`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       name TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL
     );
+  `);
 
+  await query(`
     CREATE TABLE IF NOT EXISTS recipes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       title TEXT NOT NULL,
       description TEXT,
       ingredients TEXT NOT NULL DEFAULT '[]',
@@ -21,10 +21,9 @@ export function migrate(): void {
       image_url TEXT,
       cook_time INTEGER,
       servings INTEGER,
-      author_id INTEGER NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+      author_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     );
   `);
 

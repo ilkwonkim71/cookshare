@@ -1,4 +1,4 @@
-import { getDb } from '../db';
+import { query } from '../db';
 
 export interface UserRow {
   id: number;
@@ -15,24 +15,23 @@ export interface PublicUser {
 }
 
 export const UserModel = {
-  findByEmail(email: string): UserRow | undefined {
-    const db = getDb();
-    return db.prepare('SELECT * FROM users WHERE email = ?').get(email) as UserRow | undefined;
+  async findByEmail(email: string): Promise<UserRow | undefined> {
+    const res = await query<UserRow>('SELECT * FROM users WHERE email = $1', [email]);
+    return res.rows[0];
   },
 
-  findById(id: number): UserRow | undefined {
-    const db = getDb();
-    return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow | undefined;
+  async findById(id: number): Promise<UserRow | undefined> {
+    const res = await query<UserRow>('SELECT * FROM users WHERE id = $1', [id]);
+    return res.rows[0];
   },
 
-  create(data: { email: string; password_hash: string; name: string }): UserRow {
-    const db = getDb();
-    const stmt = db.prepare('INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)');
-    const result = stmt.run(data.email, data.password_hash, data.name);
-    const created = db
-      .prepare('SELECT * FROM users WHERE id = ?')
-      .get(result.lastInsertRowid) as UserRow;
-    return created;
+  async create(data: { email: string; password_hash: string; name: string }): Promise<UserRow> {
+    const createdAt = new Date().toISOString();
+    const res = await query<UserRow>(
+      'INSERT INTO users (email, password_hash, name, created_at) VALUES ($1, $2, $3, $4) RETURNING *',
+      [data.email, data.password_hash, data.name, createdAt],
+    );
+    return res.rows[0];
   },
 
   toPublic(user: UserRow): PublicUser {

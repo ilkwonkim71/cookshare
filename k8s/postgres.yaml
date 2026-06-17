@@ -1,0 +1,84 @@
+# 로컬 테스트용 Postgres (단일 노드, RWO)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cookshare-pgdata
+  namespace: cookshare
+  labels:
+    app.kubernetes.io/part-of: cookshare
+    app.kubernetes.io/component: postgres
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: cookshare
+  labels:
+    app.kubernetes.io/part-of: cookshare
+    app.kubernetes.io/component: postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        app.kubernetes.io/part-of: cookshare
+        app.kubernetes.io/component: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: POSTGRES_USER, value: postgres }
+            - { name: POSTGRES_PASSWORD, value: postgres }
+            - { name: POSTGRES_DB, value: cookshare }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          ports:
+            - name: pg
+              containerPort: 5432
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ['pg_isready', '-U', 'postgres', '-d', 'cookshare']
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: pgdata
+          persistentVolumeClaim:
+            claimName: cookshare-pgdata
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: cookshare
+  labels:
+    app.kubernetes.io/part-of: cookshare
+    app.kubernetes.io/component: postgres
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+    - name: pg
+      port: 5432
+      targetPort: pg

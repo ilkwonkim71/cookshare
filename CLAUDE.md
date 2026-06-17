@@ -43,9 +43,9 @@ routes/ → controllers/ → models/ → db/
 ```
 
 - **`config/env.ts`** is the single source of env config. `requireEnv` throws on missing vars (only `JWT_SECRET`), `optionalEnv` supplies defaults. Import `env` from here; never read `process.env` directly elsewhere.
-- **`db/index.ts`** exposes `getDb()` — a lazy **better-sqlite3 singleton** (synchronous, WAL mode, `foreign_keys = ON`). All DB access goes through models, which call `getDb()`.
-- **`db/migrate.ts`** runs `CREATE TABLE IF NOT EXISTS` on boot (called from `index.ts` before `app.listen`). There is no migration versioning — schema changes must be added here manually.
-- **`models/`** own all SQL via prepared statements. The key pattern lives in `recipe.model.ts`:
+- **`db/index.ts`** exposes an async **pg `Pool`** via `getPool()`/`query()` (node-postgres) connecting to `DATABASE_URL`. `setPool()` lets tests inject a pg-mem pool. All DB access goes through models, which `await query(...)`.
+- **`db/migrate.ts`** runs `CREATE TABLE IF NOT EXISTS` (Postgres DDL) on boot — `await migrate()` is called from `index.ts` before `app.listen`. No migration versioning; add schema changes here manually.
+- **`models/`** own all SQL as **async** functions using parameterized `query("... $1 ...", [..])` (search uses `ILIKE`, inserts use `RETURNING`). The key pattern lives in `recipe.model.ts`:
   - DB rows are **snake_case** (`RecipeRow`); API returns **camelCase** DTOs (`RecipeDTO`).
   - `ingredients` and `steps` are stored as **JSON strings** in the DB and parsed to arrays in `toRecipeDTO`. Always serialize with `JSON.stringify` on write and map through the DTO on read.
   - Models join the author and return `author: { id, name }`.

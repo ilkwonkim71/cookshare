@@ -20,12 +20,12 @@ const recipeSchema = z.object({
 
 const updateRecipeSchema = recipeSchema.partial();
 
-export function listRecipes(req: Request, res: Response, next: NextFunction): void {
+export async function listRecipes(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const q = typeof req.query.q === 'string' ? req.query.q : undefined;
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
 
-    const { rows, total } = RecipeModel.findAll({ q, page });
+    const { rows, total } = await RecipeModel.findAll({ q, page });
     const recipes = rows.map(toRecipeDTO);
 
     res.json({ recipes, total });
@@ -34,14 +34,14 @@ export function listRecipes(req: Request, res: Response, next: NextFunction): vo
   }
 }
 
-export function getRecipe(req: Request, res: Response, next: NextFunction): void {
+export async function getRecipe(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
       throw new AppError('Invalid recipe ID', 400, 'INVALID_ID');
     }
 
-    const row = RecipeModel.findById(id);
+    const row = await RecipeModel.findById(id);
     if (!row) {
       throw new AppError('Recipe not found', 404, 'NOT_FOUND');
     }
@@ -52,7 +52,7 @@ export function getRecipe(req: Request, res: Response, next: NextFunction): void
   }
 }
 
-export function createRecipe(req: Request, res: Response, next: NextFunction): void {
+export async function createRecipe(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     if (!req.user) {
       throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
@@ -69,7 +69,7 @@ export function createRecipe(req: Request, res: Response, next: NextFunction): v
 
     const { title, description, ingredients, steps, imageUrl, cookTime, servings } = parsed.data;
 
-    const row = RecipeModel.create({
+    const row = await RecipeModel.create({
       title,
       description,
       ingredients,
@@ -86,7 +86,7 @@ export function createRecipe(req: Request, res: Response, next: NextFunction): v
   }
 }
 
-export function updateRecipe(req: Request, res: Response, next: NextFunction): void {
+export async function updateRecipe(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     if (!req.user) {
       throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
@@ -97,7 +97,7 @@ export function updateRecipe(req: Request, res: Response, next: NextFunction): v
       throw new AppError('Invalid recipe ID', 400, 'INVALID_ID');
     }
 
-    const existing = RecipeModel.findById(id);
+    const existing = await RecipeModel.findById(id);
     if (!existing) {
       throw new AppError('Recipe not found', 404, 'NOT_FOUND');
     }
@@ -117,7 +117,7 @@ export function updateRecipe(req: Request, res: Response, next: NextFunction): v
 
     const { title, description, ingredients, steps, imageUrl, cookTime, servings } = parsed.data;
 
-    const updated = RecipeModel.update(id, {
+    const updated = await RecipeModel.update(id, {
       title,
       description,
       ingredients,
@@ -133,7 +133,7 @@ export function updateRecipe(req: Request, res: Response, next: NextFunction): v
   }
 }
 
-export function deleteRecipe(req: Request, res: Response, next: NextFunction): void {
+export async function deleteRecipe(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     if (!req.user) {
       throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
@@ -144,7 +144,7 @@ export function deleteRecipe(req: Request, res: Response, next: NextFunction): v
       throw new AppError('Invalid recipe ID', 400, 'INVALID_ID');
     }
 
-    const existing = RecipeModel.findById(id);
+    const existing = await RecipeModel.findById(id);
     if (!existing) {
       throw new AppError('Recipe not found', 404, 'NOT_FOUND');
     }
@@ -153,8 +153,7 @@ export function deleteRecipe(req: Request, res: Response, next: NextFunction): v
       throw new AppError('Forbidden: you are not the author of this recipe', 403, 'FORBIDDEN');
     }
 
-    RecipeModel.delete(id);
-
+    await RecipeModel.delete(id);
     res.status(204).send();
   } catch (err) {
     next(err);

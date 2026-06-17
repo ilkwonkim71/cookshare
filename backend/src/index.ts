@@ -4,15 +4,13 @@ import { migrate } from './db/migrate';
 import { createApp } from './app';
 
 async function main(): Promise<void> {
-  // Run DB migrations
-  migrate();
+  await migrate();
 
   const app = createApp();
 
   app.listen(env.PORT, () => {
     console.log(`[Server] CookShare backend running on http://localhost:${env.PORT}`);
     console.log(`[Server] Storage driver: ${env.STORAGE_DRIVER}`);
-    console.log(`[Server] Database: ${env.DATABASE_PATH}`);
   });
 }
 

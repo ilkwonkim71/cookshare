@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/part-of: cookshare
     app.kubernetes.io/component: backend
 spec:
-  # SQLite는 단일 파일 writer → 1개만. RWO PVC 충돌 방지 위해 Recreate 전략.
+  # 단일 인스턴스 + Recreate (업로드 RWO PVC 충돌 방지). DB는 postgres 서비스 사용.
   replicas: 1
   strategy:
     type: Recreate
@@ -35,8 +35,6 @@ spec:
             - secretRef:
                 name: backend-secret
           volumeMounts:
-            - name: db
-              mountPath: /app/backend/data
             - name: uploads
               mountPath: /app/backend/uploads
           # dev 부팅(tsx)·DB 마이그레이션 시간 고려한 startupProbe
@@ -64,9 +62,6 @@ spec:
               cpu: 500m
               memory: 512Mi
       volumes:
-        - name: db
-          persistentVolumeClaim:
-            claimName: cookshare-db
         - name: uploads
           persistentVolumeClaim:
             claimName: cookshare-uploads

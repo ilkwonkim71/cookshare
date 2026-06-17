@@ -1,4 +1,4 @@
-import { getDb } from '../db';
+import { query } from '../db';
 
 export interface RecipeRow {
   id: number;
@@ -28,10 +28,7 @@ export interface RecipeDTO {
   imageUrl: string | null;
   cookTime: number | null;
   servings: number | null;
-  author: {
-    id: number;
-    name: string;
-  };
+  author: { id: number; name: string };
   createdAt: string;
   updatedAt: string;
 }
@@ -54,10 +51,7 @@ export function toRecipeDTO(row: RecipeWithAuthor): RecipeDTO {
     imageUrl: row.image_url,
     cookTime: row.cook_time,
     servings: row.servings,
-    author: {
-      id: row.author_id,
-      name: row.author_name,
-    },
+    author: { id: row.author_id, name: row.author_name },
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -70,44 +64,41 @@ const SELECT_WITH_AUTHOR = `
 `;
 
 export const RecipeModel = {
-  findAll(opts: { q?: string; page?: number; limit?: number }): {
-    rows: RecipeWithAuthor[];
-    total: number;
-  } {
-    const db = getDb();
+  async findAll(opts: {
+    q?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ rows: RecipeWithAuthor[]; total: number }> {
     const limit = opts.limit ?? 20;
     const offset = ((opts.page ?? 1) - 1) * limit;
 
     if (opts.q) {
       const pattern = `%${opts.q}%`;
-      const rows = db
-        .prepare(
-          `${SELECT_WITH_AUTHOR} WHERE r.title LIKE ? OR r.description LIKE ? ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
-        )
-        .all(pattern, pattern, limit, offset) as RecipeWithAuthor[];
-      const { total } = db
-        .prepare('SELECT COUNT(*) AS total FROM recipes WHERE title LIKE ? OR description LIKE ?')
-        .get(pattern, pattern) as { total: number };
-      return { rows, total };
+      const rowsRes = await query<RecipeWithAuthor>(
+        `${SELECT_WITH_AUTHOR} WHERE r.title ILIKE $1 OR r.description ILIKE $2 ORDER BY r.created_at DESC LIMIT $3 OFFSET $4`,
+        [pattern, pattern, limit, offset],
+      );
+      const countRes = await query<{ total: string }>(
+        'SELECT COUNT(*) AS total FROM recipes WHERE title ILIKE $1 OR description ILIKE $2',
+        [pattern, pattern],
+      );
+      return { rows: rowsRes.rows, total: Number(countRes.rows[0].total) };
     }
 
-    const rows = db
-      .prepare(`${SELECT_WITH_AUTHOR} ORDER BY r.created_at DESC LIMIT ? OFFSET ?`)
-      .all(limit, offset) as RecipeWithAuthor[];
-    const { total } = db.prepare('SELECT COUNT(*) AS total FROM recipes').get() as {
-      total: number;
-    };
-    return { rows, total };
+    const rowsRes = await query<RecipeWithAuthor>(
+      `${SELECT_WITH_AUTHOR} ORDER BY r.created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
+    const countRes = await query<{ total: string }>('SELECT COUNT(*) AS total FROM recipes');
+    return { rows: rowsRes.rows, total: Number(countRes.rows[0].total) };
   },
 
-  findById(id: number): RecipeWithAuthor | undefined {
-    const db = getDb();
-    return db.prepare(`${SELECT_WITH_AUTHOR} WHERE r.id = ?`).get(id) as
-      | RecipeWithAuthor
-      | undefined;
+  async findById(id: number): Promise<RecipeWithAuthor | undefined> {
+    const res = await query<RecipeWithAuthor>(`${SELECT_WITH_AUTHOR} WHERE r.id = $1`, [id]);
+    return res.rows[0];
   },
 
-  create(data: {
+  async create(data: {
     title: string;
     description?: string;
     ingredients: string[];
@@ -116,29 +107,28 @@ export const RecipeModel = {
     cook_time?: number;
     servings?: number;
     author_id: number;
-  }): RecipeWithAuthor {
-    const db = getDb();
+  }): Promise<RecipeWithAuthor> {
     const now = new Date().toISOString();
-    const stmt = db.prepare(`
-      INSERT INTO recipes (title, description, ingredients, steps, image_url, cook_time, servings, author_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const result = stmt.run(
-      data.title,
-      data.description ?? null,
-      JSON.stringify(data.ingredients),
-      JSON.stringify(data.steps),
-      data.image_url ?? null,
-      data.cook_time ?? null,
-      data.servings ?? null,
-      data.author_id,
-      now,
-      now,
+    const res = await query<{ id: number }>(
+      `INSERT INTO recipes (title, description, ingredients, steps, image_url, cook_time, servings, author_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [
+        data.title,
+        data.description ?? null,
+        JSON.stringify(data.ingredients),
+        JSON.stringify(data.steps),
+        data.image_url ?? null,
+        data.cook_time ?? null,
+        data.servings ?? null,
+        data.author_id,
+        now,
+        now,
+      ],
     );
-    return this.findById(result.lastInsertRowid as number)!;
+    return (await this.findById(res.rows[0].id))!;
   },
 
-  update(
+  async update(
     id: number,
     data: Partial<{
       title: string;
@@ -149,50 +139,47 @@ export const RecipeModel = {
       cook_time: number;
       servings: number;
     }>,
-  ): RecipeWithAuthor | undefined {
-    const db = getDb();
+  ): Promise<RecipeWithAuthor | undefined> {
     const now = new Date().toISOString();
-
-    const sets: string[] = ['updated_at = ?'];
+    const sets: string[] = ['updated_at = $1'];
     const values: unknown[] = [now];
+    let i = 2;
 
     if (data.title !== undefined) {
-      sets.push('title = ?');
+      sets.push(`title = $${i++}`);
       values.push(data.title);
     }
     if (data.description !== undefined) {
-      sets.push('description = ?');
+      sets.push(`description = $${i++}`);
       values.push(data.description);
     }
     if (data.ingredients !== undefined) {
-      sets.push('ingredients = ?');
+      sets.push(`ingredients = $${i++}`);
       values.push(JSON.stringify(data.ingredients));
     }
     if (data.steps !== undefined) {
-      sets.push('steps = ?');
+      sets.push(`steps = $${i++}`);
       values.push(JSON.stringify(data.steps));
     }
     if (data.image_url !== undefined) {
-      sets.push('image_url = ?');
+      sets.push(`image_url = $${i++}`);
       values.push(data.image_url);
     }
     if (data.cook_time !== undefined) {
-      sets.push('cook_time = ?');
+      sets.push(`cook_time = $${i++}`);
       values.push(data.cook_time);
     }
     if (data.servings !== undefined) {
-      sets.push('servings = ?');
+      sets.push(`servings = $${i++}`);
       values.push(data.servings);
     }
 
     values.push(id);
-    db.prepare(`UPDATE recipes SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-
+    await query(`UPDATE recipes SET ${sets.join(', ')} WHERE id = $${i}`, values);
     return this.findById(id);
   },
 
-  delete(id: number): void {
-    const db = getDb();
-    db.prepare('DELETE FROM recipes WHERE id = ?').run(id);
+  async delete(id: number): Promise<void> {
+    await query('DELETE FROM recipes WHERE id = $1', [id]);
   },
 };

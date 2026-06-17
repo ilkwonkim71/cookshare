@@ -4,13 +4,13 @@
 
 ## 기술 스택
 
-| 영역     | 스택                                            |
-| -------- | ----------------------------------------------- |
-| Frontend | Next.js 14 (App Router), TypeScript, shadcn/ui  |
-| Backend  | Express, TypeScript                             |
-| Database | SQLite (개발용, better-sqlite3)                 |
-| 인증     | JWT (Bearer 토큰)                               |
-| 이미지   | 로컬 파일 저장 (S3 전환 가능한 스토리지 추상화) |
+| 영역     | 스택                                               |
+| -------- | -------------------------------------------------- |
+| Frontend | Next.js 14 (App Router), TypeScript, shadcn/ui     |
+| Backend  | Express, TypeScript                                |
+| Database | PostgreSQL (Supabase / 로컬 Docker, node-postgres) |
+| 인증     | JWT (Bearer 토큰)                                  |
+| 이미지   | 로컬 파일 저장 (S3 전환 가능한 스토리지 추상화)    |
 
 ## 프로젝트 구조
 

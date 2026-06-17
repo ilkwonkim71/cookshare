@@ -29,20 +29,17 @@ export async function register(req: Request, res: Response, next: NextFunction):
 
     const { email, password, name } = parsed.data;
 
-    const existing = UserModel.findByEmail(email);
+    const existing = await UserModel.findByEmail(email);
     if (existing) {
       throw new AppError('Email already in use', 409, 'EMAIL_CONFLICT');
     }
 
     const password_hash = await hashPassword(password);
-    const user = UserModel.create({ email, password_hash, name });
+    const user = await UserModel.create({ email, password_hash, name });
 
     const token = signToken({ sub: user.id, email: user.email, name: user.name });
 
-    res.status(201).json({
-      token,
-      user: UserModel.toPublic(user),
-    });
+    res.status(201).json({ token, user: UserModel.toPublic(user) });
   } catch (err) {
     next(err);
   }
@@ -61,7 +58,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
 
     const { email, password } = parsed.data;
 
-    const user = UserModel.findByEmail(email);
+    const user = await UserModel.findByEmail(email);
     if (!user) {
       throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
     }
@@ -73,22 +70,19 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
 
     const token = signToken({ sub: user.id, email: user.email, name: user.name });
 
-    res.status(200).json({
-      token,
-      user: UserModel.toPublic(user),
-    });
+    res.status(200).json({ token, user: UserModel.toPublic(user) });
   } catch (err) {
     next(err);
   }
 }
 
-export function me(req: Request, res: Response, next: NextFunction): void {
+export async function me(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     if (!req.user) {
       throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const user = UserModel.findById(req.user.id);
+    const user = await UserModel.findById(req.user.id);
     if (!user) {
       throw new AppError('User not found', 404, 'NOT_FOUND');
     }

@@ -1,12 +1,16 @@
 import request from 'supertest';
 import { createApp } from '../../src/app';
-import { migrate } from '../../src/db/migrate';
+import { setupTestDb, teardownTestDb } from '../helpers/testDb';
 
 const app = createApp();
 const email = `user${Date.now()}@test.com`;
 
-beforeAll(() => {
-  migrate();
+beforeAll(async () => {
+  await setupTestDb();
+});
+
+afterAll(async () => {
+  await teardownTestDb();
 });
 
 describe('auth API', () => {

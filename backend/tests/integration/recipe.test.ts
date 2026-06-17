@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { createApp } from '../../src/app';
-import { migrate } from '../../src/db/migrate';
+import { setupTestDb, teardownTestDb } from '../helpers/testDb';
 
 const app = createApp();
 
@@ -12,8 +12,12 @@ async function registerAndLogin(email: string): Promise<string> {
   return res.body.token as string;
 }
 
-beforeAll(() => {
-  migrate();
+beforeAll(async () => {
+  await setupTestDb();
+});
+
+afterAll(async () => {
+  await teardownTestDb();
 });
 
 describe('recipe API', () => {

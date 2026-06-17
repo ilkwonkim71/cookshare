@@ -1,25 +1,33 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
+import { Pool, type QueryResult, type QueryResultRow } from 'pg';
 import { env } from '../config/env';
 
-let _db: Database.Database | null = null;
+let _pool: Pool | null = null;
 
-export function getDb(): Database.Database {
-  if (!_db) {
-    if (env.DATABASE_PATH === ':memory:') {
-      // 테스트용 인메모리 DB (프로세스 단위 격리)
-      _db = new Database(':memory:');
-    } else {
-      const dbPath = path.resolve(process.cwd(), env.DATABASE_PATH);
-      const dbDir = path.dirname(dbPath);
-      if (!fs.existsSync(dbDir)) {
-        fs.mkdirSync(dbDir, { recursive: true });
-      }
-      _db = new Database(dbPath);
-      _db.pragma('journal_mode = WAL');
-    }
-    _db.pragma('foreign_keys = ON');
+// 테스트(pg-mem) 등에서 풀을 주입하기 위한 훅
+export function setPool(pool: Pool): void {
+  _pool = pool;
+}
+
+export function getPool(): Pool {
+  if (!_pool) {
+    _pool = new Pool({
+      connectionString: env.DATABASE_URL,
+      ssl: env.DATABASE_SSL ? { rejectUnauthorized: false } : undefined,
+    });
   }
-  return _db;
+  return _pool;
+}
+
+export function query<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params?: unknown[],
+): Promise<QueryResult<T>> {
+  return getPool().query<T>(text, params as unknown[]);
+}
+
+export async function closePool(): Promise<void> {
+  if (_pool) {
+    await _pool.end();
+    _pool = null;
+  }
 }
