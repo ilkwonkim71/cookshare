@@ -8,7 +8,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "pnpm -r build",
+    "build": "pnpm --filter @cookshare/shared run build && pnpm --filter @cookshare/backend run build && pnpm --filter @cookshare/frontend run build",
     "dev": "pnpm --filter @cookshare/shared run build && pnpm --parallel --filter @cookshare/backend --filter @cookshare/frontend run dev",
     "dev:backend": "pnpm --filter @cookshare/shared run build && pnpm --filter @cookshare/backend run dev",
     "dev:frontend": "pnpm --filter @cookshare/shared run build && pnpm --filter @cookshare/frontend run dev",
