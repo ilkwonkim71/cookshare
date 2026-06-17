@@ -1,0 +1,9 @@
+{
+  "frontend/**/*.{ts,tsx,js,jsx}": [
+    "pnpm --filter @cookshare/frontend exec eslint --fix",
+    "prettier --write"
+  ],
+  "{backend,packages}/**/*.{ts,js}": ["prettier --write"],
+  "**/*.{json,jsonc,css,scss,md,mdx,yml,yaml}": ["prettier --write"],
+  "*.{mjs,cjs}": ["prettier --write"]
+}

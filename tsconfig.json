@@ -1,0 +1,5 @@
+{
+  "//": "Solution-style root config for `tsc -b`. Only the composite library (shared) is built here; apps (backend/frontend) reference it and are type-checked via their own tsc --noEmit (see root `typecheck` script).",
+  "files": [],
+  "references": [{ "path": "./packages/shared" }]
+}

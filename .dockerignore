@@ -1,0 +1,22 @@
+# 빌드 컨텍스트 최소화 + 호스트(Windows) 산출물이 이미지로 들어가지 않게 차단
+**/node_modules
+**/dist
+**/.next
+**/out
+**/build
+**/*.tsbuildinfo
+
+.git
+.husky/_
+.vscode
+
+# 개발 데이터/업로드(볼륨으로 관리)
+backend/data
+backend/uploads
+
+# 환경/로그
+**/.env
+**/.env.local
+**/*.log
+Dockerfile.dev
+.dockerignore

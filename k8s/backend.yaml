@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: cookshare
+  labels:
+    app.kubernetes.io/part-of: cookshare
+    app.kubernetes.io/component: backend
+spec:
+  # SQLite는 단일 파일 writer → 1개만. RWO PVC 충돌 방지 위해 Recreate 전략.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+        app.kubernetes.io/part-of: cookshare
+        app.kubernetes.io/component: backend
+    spec:
+      containers:
+        - name: backend
+          image: cookshare:dev
+          imagePullPolicy: IfNotPresent
+          command: ['pnpm', '--filter', '@cookshare/backend', 'run', 'dev']
+          ports:
+            - name: http
+              containerPort: 4000
+          envFrom:
+            - configMapRef:
+                name: backend-config
+            - secretRef:
+                name: backend-secret
+          volumeMounts:
+            - name: db
+              mountPath: /app/backend/data
+            - name: uploads
+              mountPath: /app/backend/uploads
+          # dev 부팅(tsx)·DB 마이그레이션 시간 고려한 startupProbe
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: db
+          persistentVolumeClaim:
+            claimName: cookshare-db
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: cookshare-uploads
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: cookshare
+  labels:
+    app.kubernetes.io/part-of: cookshare
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 4000
+      targetPort: http

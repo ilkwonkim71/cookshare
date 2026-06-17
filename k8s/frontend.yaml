@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: cookshare
+  labels:
+    app.kubernetes.io/part-of: cookshare
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+        app.kubernetes.io/part-of: cookshare
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: cookshare:dev
+          imagePullPolicy: IfNotPresent
+          command:
+            [
+              'pnpm',
+              '--filter',
+              '@cookshare/frontend',
+              'exec',
+              'next',
+              'dev',
+              '-p',
+              '3000',
+              '-H',
+              '0.0.0.0',
+            ]
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: frontend-config
+          # next dev 첫 컴파일이 느릴 수 있어 startupProbe로 충분히 대기
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            failureThreshold: 40
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: '1'
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: cookshare
+  labels:
+    app.kubernetes.io/part-of: cookshare
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

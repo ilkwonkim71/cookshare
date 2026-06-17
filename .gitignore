@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.next/
+out/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database (dev SQLite)
+*.sqlite
+*.sqlite3
+*.db
+
+# Uploaded images (local storage)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# 테스트 산출물
+**/coverage/
+playwright-report/
+test-results/
+.playwright/
+blob-report/
+
+# 브라우저 데모 산출물
+.playwright-mcp/
+cookshare-*.png

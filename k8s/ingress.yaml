@@ -1,0 +1,43 @@
+# 선택 사항: ingress-nginx 컨트롤러가 설치된 경우 단일 호스트로 접근.
+# 사용 시:
+#   1) hosts 파일에 `127.0.0.1 cookshare.local` 추가
+#   2) frontend-config 의 NEXT_PUBLIC_API_URL 을 http://cookshare.local/api 로 변경 후 재배포
+# 이 파일은 kustomization.yaml 에 포함되어 있지 않다(별도 적용: kubectl apply -f k8s/ingress.yaml).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cookshare
+  namespace: cookshare
+  labels:
+    app.kubernetes.io/part-of: cookshare
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: 'true'
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: cookshare.local
+      http:
+        paths:
+          # API와 업로드 정적 파일은 백엔드로
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 4000
+          - path: /uploads
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 4000
+          # 그 외 전부 프론트엔드로
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 3000

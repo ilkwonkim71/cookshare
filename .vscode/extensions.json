@@ -1,0 +1,26 @@
+{
+  // 이 워크스페이스에서 권장하는 확장. VS Code가 설치 안내 알림을 띄웁니다.
+  "recommendations": [
+    // 린트 / 포맷
+    "dbaeumer.vscode-eslint", // ESLint (frontend next lint)
+    "esbenp.prettier-vscode", // Prettier (루트 공통 포매터)
+
+    // 프레임워크 / 스타일
+    "bradlc.vscode-tailwindcss", // Tailwind CSS 자동완성 (cva/cn 포함)
+    "dsznajder.es7-react-js-snippets", // React/Next 스니펫 보조
+
+    // TypeScript DX
+    "yoavbls.pretty-ts-errors", // 읽기 쉬운 TS 에러
+    "usernamehw.errorlens", // 인라인 에러/경고 표시
+
+    // 보조
+    "mikestead.dotenv", // .env 구문 강조
+    "christian-kohler.path-intellisense", // 경로 자동완성
+    "formulahendry.auto-rename-tag", // JSX 태그 동시 수정
+    "streetsidesoftware.code-spell-checker" // 오타 검사
+  ],
+  "unwantedRecommendations": [
+    // pnpm 사용 — npm/yarn 잠금파일 기반 확장과 혼선 방지
+    "hookyqr.beautify"
+  ]
+}

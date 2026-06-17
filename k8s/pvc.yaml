@@ -1,0 +1,31 @@
+# SQLite 파일 DB와 업로드물 영속화 (단일 노드 로컬 클러스터: RWO)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cookshare-db
+  namespace: cookshare
+  labels:
+    app.kubernetes.io/part-of: cookshare
+    app.kubernetes.io/component: backend
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # storageClassName 미지정 → 로컬 클러스터 기본 StorageClass 사용
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cookshare-uploads
+  namespace: cookshare
+  labels:
+    app.kubernetes.io/part-of: cookshare
+    app.kubernetes.io/component: backend
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

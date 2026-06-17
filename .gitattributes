@@ -1,0 +1,17 @@
+# 기본 텍스트 정규화
+* text=auto eol=lf
+
+# Git hooks / 셸 스크립트는 반드시 LF (CRLF면 sh 실행 실패)
+.husky/** text eol=lf
+*.sh text eol=lf
+
+# Windows 전용 스크립트는 CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# 바이너리/생성물
+pnpm-lock.yaml -diff linguist-generated
+*.png binary
+*.jpg binary
+*.webp binary
+*.gif binary

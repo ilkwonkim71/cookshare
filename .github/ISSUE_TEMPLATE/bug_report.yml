@@ -1,0 +1,71 @@
+name: '🐛 버그 리포트 (Bug Report)'
+description: '기대와 다르게 동작하는 문제 보고'
+title: '[Bug] '
+labels: ['type: bug']
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: 요약
+      description: '무엇이 잘못되었나요?'
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 재현 단계
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 동작
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 동작
+      description: '에러 메시지/스크린샷. 백엔드 에러는 `{ error: { message, code } }` 형식임을 참고.'
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영역
+      options:
+        - 'frontend (Next.js :3000)'
+        - 'backend (Express :4000)'
+        - 'fullstack / 계약 불일치'
+        - '기타'
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 심각도
+      description: 'RISK-ANALYSIS.md의 등급 기준'
+      options:
+        - '🔴 High - 출시 차단'
+        - '🟠 Medium - 출시 전/직후 해결'
+        - '🟡 Low - 모니터링'
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 환경
+      value: |
+        - OS:
+        - Node 버전:
+        - 브라우저(프론트인 경우):
+  - type: input
+    id: risk-ref
+    attributes:
+      label: 관련 리스크 ID
+      description: 'RISK-ANALYSIS.md 참조 (예: R6). 해당 없으면 비워두세요.'
+      placeholder: 'R6'

@@ -1,0 +1,68 @@
+name: '📖 사용자 스토리 (User Story)'
+description: 'MVP 명세 형식의 기능 요구사항. As a / I want / So that'
+title: '[Story] '
+labels: ['type: story']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `docs/MVP-SPEC.md`의 사용자 스토리 형식을 따릅니다. 우선순위 라벨(`P0`/`P1`/`P2`)과 마일스톤(S1~S6)을 함께 지정하세요.
+  - type: input
+    id: story-id
+    attributes:
+      label: 스토리 ID
+      description: 'MVP-SPEC 참조 ID (예: US-2.3). 신규면 비워두세요.'
+      placeholder: 'US-2.3'
+  - type: textarea
+    id: story
+    attributes:
+      label: 사용자 스토리
+      description: 'As a / I want / So that 형식'
+      value: |
+        **As a** <역할>
+        **I want** <원하는 것>
+        **So that** <이유/가치>
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 인수 조건 (Acceptance Criteria)
+      description: '완료를 판단할 수 있는 체크리스트'
+      value: |
+        - [ ]
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 우선순위
+      options:
+        - 'P0 - Must-have (출시 필수)'
+        - 'P1 - Should-have (중요)'
+        - 'P2 - Nice-to-have (선택)'
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영역
+      options:
+        - 'frontend'
+        - 'backend'
+        - 'fullstack'
+    validations:
+      required: true
+  - type: input
+    id: estimate
+    attributes:
+      label: 예상 공수
+      description: 'WBS 기준 시간 (예: 4h)'
+      placeholder: '4h'
+  - type: textarea
+    id: notes
+    attributes:
+      label: 구현 메모 / 의존성
+      description: '관련 파일, 선행 작업, API 계약 영향 등. CLAUDE.md의 교차 계약 주의.'

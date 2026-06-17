@@ -1,0 +1,107 @@
+# 개발용 Docker Compose — 핫 리로드 / SQLite 연동 / 볼륨 / 네트워크
+# 실행:  docker compose -f docker-compose.dev.yml up --build
+# 종료:  docker compose -f docker-compose.dev.yml down        (데이터 유지)
+#        docker compose -f docker-compose.dev.yml down -v     (볼륨까지 삭제)
+
+# 모든 서비스가 공유하는 빌드 정의(같은 이미지)와 마운트/환경을 앵커로 재사용
+x-build: &build
+  build:
+    context: .
+    dockerfile: Dockerfile.dev
+
+# 소스는 바인드 마운트(핫 리로드)하되, node_modules 경로는 익명 볼륨으로 차폐
+# → 호스트(Windows)의 node_modules가 컨테이너 안의 Linux 바이너리를 덮어쓰지 못하게 함
+x-source-mounts: &source-mounts
+  - .:/app
+  - /app/node_modules
+  - /app/backend/node_modules
+  - /app/frontend/node_modules
+  - /app/packages/shared/node_modules
+
+# Windows/WSL2에서 파일 변경 이벤트 전파를 위해 폴링 활성화
+x-watch-env: &watch-env
+  CHOKIDAR_USEPOLLING: 'true'
+  WATCHPACK_POLLING: 'true'
+
+services:
+  # 공유 타입/상수 패키지 — 변경 시 dist 재빌드(watch)
+  shared:
+    <<: *build
+    container_name: cookshare-shared
+    command: pnpm --filter @cookshare/shared run dev
+    environment:
+      <<: *watch-env
+    volumes: *source-mounts
+    networks: [cookshare-net]
+
+  # 백엔드 — Express + tsx watch (핫 리로드)
+  backend:
+    <<: *build
+    container_name: cookshare-backend
+    command: pnpm --filter @cookshare/backend run dev
+    depends_on:
+      - shared
+    environment:
+      <<: *watch-env
+      NODE_ENV: development
+      PORT: '4000'
+      JWT_SECRET: dev-secret-change-me
+      JWT_EXPIRES_IN: 7d
+      DATABASE_PATH: ./data/cookshare.sqlite
+      STORAGE_DRIVER: local
+      UPLOAD_DIR: ./uploads
+      PUBLIC_BASE_URL: http://localhost:4000
+      CORS_ORIGIN: http://localhost:3000
+    ports:
+      - '4000:4000'
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/backend/node_modules
+      - /app/frontend/node_modules
+      - /app/packages/shared/node_modules
+      # SQLite 파일 + 업로드물은 named volume으로 영속화(바인드 마운트 락 이슈 회피)
+      - cookshare-db:/app/backend/data
+      - cookshare-uploads:/app/backend/uploads
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [cookshare-net]
+
+  # 프론트엔드 — Next.js dev (핫 리로드). 컨테이너에서 0.0.0.0 바인드
+  frontend:
+    <<: *build
+    container_name: cookshare-frontend
+    command: pnpm --filter @cookshare/frontend exec next dev -p 3000 -H 0.0.0.0
+    depends_on:
+      - backend
+      - shared
+    environment:
+      <<: *watch-env
+      NODE_ENV: development
+      # 브라우저에서 호출하는 주소 → 컨테이너명이 아니라 호스트의 localhost
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+    ports:
+      - '3000:3000'
+    volumes: *source-mounts
+    networks: [cookshare-net]
+
+# 사용자 정의 브리지 네트워크 — 서비스명으로 상호 통신(backend:4000 등)
+networks:
+  cookshare-net:
+    driver: bridge
+    name: cookshare-net
+
+# 영속 볼륨
+volumes:
+  cookshare-db:
+    name: cookshare-db
+  cookshare-uploads:
+    name: cookshare-uploads
