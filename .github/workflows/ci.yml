@@ -49,6 +49,23 @@ jobs:
   e2e:
     name: Playwright E2E
     runs-on: ubuntu-latest
+
+    # E2E 는 실제 백엔드(pg)를 기동하므로 진짜 Postgres 가 필요하다.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cookshare
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cookshare"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -68,6 +85,11 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run E2E tests
+        # playwright.config 의 webServer 는 DB env 를 주입하지 않고
+        # process.env 를 그대로 백엔드로 전달한다. 여기서 CI Postgres 를 가리킨다.
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/cookshare
+          DATABASE_SSL: 'false'
         run: pnpm test:e2e
 
       - name: Upload Playwright report
