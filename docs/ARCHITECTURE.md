@@ -3,7 +3,7 @@
 레시피 공유 서비스의 시스템 아키텍처 문서입니다. 실제 스캐폴딩된 코드 구조를 기준으로 작성되었습니다.
 
 - 대상 스택: Next.js 14 (App Router) / Express + TS / PostgreSQL / JWT / 로컬 이미지 저장
-- 문서 버전: 2026-06-17
+- 문서 버전: 2026-06-18 (실제 배포 구성 · CI/CD 다이어그램 반영)
 
 ---
 
@@ -303,7 +303,90 @@ flowchart TB
 
 ---
 
-## 9. 기술 결정 요약 (ADR 축약)
+### 8.3 현재 운영 배포 (실제 구성, 2026-06-18)
+
+실제로 배포되어 동작 중인 토폴로지입니다. (8.2 는 지향 목표, 본 절은 현재 상태)
+
+```mermaid
+flowchart TB
+    Client([👤 사용자 브라우저])
+
+    subgraph Vercel["Vercel"]
+        FE["프론트엔드 · Next.js 14<br/>프로젝트명: cookshare-backend<br/>https://cookshare-backend.vercel.app"]
+    end
+
+    subgraph Render["Render · Docker (free)"]
+        BE["백엔드 · Express + TS<br/>서비스: cookshare-api<br/>https://cookshare-api.onrender.com"]
+    end
+
+    subgraph Supabase["Supabase"]
+        DB[(PostgreSQL<br/>IPv4 Pooler<br/>aws-1-ap-southeast-1<br/>:6543)]
+    end
+
+    Client -->|HTTPS / HTML| FE
+    FE -->|"NEXT_PUBLIC_API_URL → /api<br/>JSON + Bearer JWT (CORS 허용)"| BE
+    BE -->|"DATABASE_URL (SSL)<br/>node-postgres Pool"| DB
+
+    note2["⚠️ 운영 주의점<br/>① Vercel 프로젝트명이 'backend'지만 실제는 프론트엔드<br/>② Render free 플랜은 유휴 시 슬립 → 첫 요청 콜드스타트(~50s)<br/>③ 업로드가 로컬 디스크(휘발성) → 영속 필요 시 S3 전환(8.2 참고)<br/>④ 직접 연결(db.*.supabase.co)은 IPv6 전용 → 반드시 Pooler 사용"]
+```
+
+핵심 환경 변수 매핑:
+
+| 위치            | 변수                  | 값                                                                                |
+| --------------- | --------------------- | --------------------------------------------------------------------------------- |
+| Vercel (프론트) | `NEXT_PUBLIC_API_URL` | `https://cookshare-api.onrender.com/api` (빌드 시 주입 → 변경 시 **재배포 필수**) |
+| Render (백엔드) | `DATABASE_URL`        | Supabase **pooler** 연결 문자열 (host `...pooler.supabase.com`)                   |
+| Render (백엔드) | `DATABASE_SSL`        | `true`                                                                            |
+| Render (백엔드) | `CORS_ORIGIN`         | `https://cookshare-backend.vercel.app` (끝 슬래시 없음)                           |
+| Render (백엔드) | `JWT_SECRET`          | 자동 생성                                                                         |
+
+> 배포 대안: Railway(`railway.json`), Kubernetes(`k8s/`) 매니페스트도 저장소에 준비되어 있습니다.
+
+---
+
+## 9. CI/CD 파이프라인
+
+GitHub Actions(`.github/workflows/ci.yml`)와 `main` 브랜치 보호 규칙, 호스팅 자동 배포의 흐름입니다.
+
+```mermaid
+flowchart LR
+    Dev([개발자]) -->|"git push / Pull Request"| GH["GitHub<br/>main (보호 브랜치)"]
+
+    subgraph Actions["GitHub Actions · ci.yml"]
+        direction TB
+        Check["check 잡<br/>lint → typecheck<br/>→ unit + integration (coverage)<br/>(pg-mem)"]
+        E2E["e2e 잡<br/>Postgres 16 서비스 컨테이너<br/>+ Playwright (smoke · mvp)"]
+    end
+
+    GH --> Check
+    GH --> E2E
+    Check --> Gate{"필수 체크<br/>2 / 2 통과?"}
+    E2E --> Gate
+    Gate -->|아니오| Block["🚫 머지 차단"]
+    Gate -->|예| Merge["✅ main 머지 허용"]
+
+    Merge --> CD
+    subgraph CD["호스팅 자동 배포 (main push 트리거)"]
+        direction TB
+        VercelD["Vercel<br/>프론트 빌드·재배포"]
+        RenderD["Render<br/>Docker 이미지 빌드·재배포"]
+    end
+```
+
+로컬 게이트(개발자 머신, Husky):
+
+```mermaid
+flowchart LR
+    Commit([git commit]) --> PreCommit["pre-commit<br/>lint-staged<br/>(prettier · eslint)"]
+    PreCommit --> CommitMsg["commit-msg<br/>commitlint<br/>(Conventional Commits)"]
+    CommitMsg --> Push([git push])
+    Push --> PrePush["pre-push<br/>typecheck + 단위 테스트"]
+    PrePush --> Remote([원격 반영])
+```
+
+---
+
+## 10. 기술 결정 요약 (ADR 축약)
 
 | 결정                     | 선택                       | 이유                                        | 대안/전환                        |
 | ------------------------ | -------------------------- | ------------------------------------------- | -------------------------------- |
